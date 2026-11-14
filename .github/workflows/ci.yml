@@ -1,0 +1,52 @@
+name: CI
+on:
+  push:
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17.7-bookworm
+        env:
+          POSTGRES_USER: card
+          POSTGRES_PASSWORD: ci_only
+          POSTGRES_DB: card_test
+        ports:
+          - 55433:5432
+        options: >-
+          --health-cmd "pg_isready -U card -d card_test"
+          --health-interval 3s --health-timeout 3s --health-retries 20
+    env:
+      TEST_DATABASE_URL: postgresql://card:ci_only@localhost:55433/card_test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - run: npm run lint
+      - run: npm test
+      - run: npm run test:e2e
+      - name: Build and start from an empty Docker volume
+        run: docker compose down -v && docker compose up --build -d --wait --wait-timeout 240
+      - name: Verify the exact assignment query using curl
+        run: |
+          curl --fail-with-body --silent http://localhost:3000/graphql \
+            -H 'Content-Type: application/json' \
+            --data '{"query":"query { profile { name description skills { name } experience { company position } projects { name } } }"}'
+          node scripts/verify-stack.mjs before
+      - name: Restart and prove startup seed idempotence
+        run: |
+          docker compose restart api
+          node scripts/verify-stack.mjs after
+      - name: Container logs
+        if: always()
+        run: docker compose logs --no-color
+      - name: Clean up
+        if: always()
+        run: docker compose down -v
