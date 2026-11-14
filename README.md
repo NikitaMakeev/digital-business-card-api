@@ -3,7 +3,7 @@
 A small, read-only GraphQL backend for **Nikita Makeev**, built to be understandable and extendable during a live interview. NestJS, strict TypeScript, Apollo Server, Prisma, PostgreSQL, and Docker. No CMS, authentication, mutations, or speculative framework layers.
 
 - Repository: https://github.com/NikitaMakeev/digital-business-card-api
-- Live Sandbox: deployment verification pending
+- Live Sandbox: https://digital-business-card-api-dxsk.onrender.com/graphql
 
 ## Quick start
 
@@ -193,6 +193,16 @@ Unit tests cover mapping, key order, grouping, and configuration failures. E2e t
 GitHub Actions additionally builds the Dockerfile, starts from an empty Compose volume, queries using curl, verifies Sandbox/health/data counts, restarts the API, and compares IDs/content before and after. All Compose cleanup is scoped to this project.
 
 Local execution: 8 unit tests and 5 e2e tests passed against a separately created managed PostgreSQL test database. Docker CLI is unavailable on the author's execution machine; clean container verification is delegated to CI, not claimed as locally executed. Deployment and CI results are recorded below after verification.
+
+### Deployment verification
+
+- [Clean-stack CI run](https://github.com/NikitaMakeev/digital-business-card-api/actions/runs/43607912285): all gates passed, including empty-volume Docker build/start, the exact curl query, and API restart with unchanged row IDs/content.
+- Production exact query: HTTP 200, no GraphQL errors, supplied profile, 38 ordered skills, one employment record, five projects.
+- Production `/graphql` with `Accept: text/html`: HTTP 200 and embedded Sandbox; opened in Chromium and confirmed the Apollo Sandbox iframe and controls load. Production `/health`: HTTP 200, `{"status":"ok"}`.
+- Dependencies: `npm audit --omit=dev` reports **zero vulnerabilities** after an explicit `@graphql-tools/utils` 12.1.0 override for [GHSA-c4qx-w738-7hr3](https://github.com/advisories/GHSA-c4qx-w738-7hr3). Apollo's upstream range still admits the vulnerable version; the override deliberately supersedes that range, is shared with Nest's version, and is covered by the full test suite. Remove it when upstream accepts a patched version.
+- Full `npm audit` also checks build/test-only dependencies and reports upstream tooling advisories. These packages do not ship in the production image; track upstream fixes rather than forcing breaking Jest downgrades to suppress the report.
+
+Render auto-deploy is intentionally off: deployment was triggered explicitly from the tested Git commit. To redeploy, open the service in Render → Manual Deploy → Deploy latest commit after CI passes. The host receives only runtime variables, not its own management API key. Keep external DB access restricted to trusted client IPs when testing remotely; the deployed API uses the internal database network.
 
 ## How to extend: Education
 
