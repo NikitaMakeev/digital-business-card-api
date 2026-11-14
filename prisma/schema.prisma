@@ -1,0 +1,86 @@
+generator client {
+  provider     = "prisma-client"
+  output       = "../src/generated/prisma"
+  moduleFormat = "cjs"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum LinkType {
+  GITHUB
+  LINKEDIN
+  TELEGRAM
+  WEBSITE
+  EMAIL
+}
+
+model Profile {
+  id          String        @id @default(cuid())
+  slug        String        @unique
+  name        String
+  description String
+  location    String
+  languages   String[]
+  links       ProfileLink[]
+  skills      Skill[]
+  experience  Experience[]
+  projects    Project[]
+}
+
+model ProfileLink {
+  id        String   @id @default(cuid())
+  profileId String
+  profile   Profile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  type      LinkType
+  url       String
+  sortOrder Int
+
+  @@unique([profileId, type])
+  @@index([profileId, sortOrder])
+}
+
+model Skill {
+  id                String  @id @default(cuid())
+  profileId         String
+  profile           Profile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  name              String
+  category          String
+  categorySortOrder Int
+  sortOrder         Int
+
+  @@unique([profileId, category, name])
+  @@index([profileId, categorySortOrder, sortOrder])
+}
+
+model Experience {
+  id           String    @id @default(cuid())
+  profileId    String
+  profile      Profile   @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  company      String
+  position     String
+  startDate    DateTime? @db.Date
+  endDate      DateTime? @db.Date
+  location     String
+  achievements String[]
+  sortOrder    Int
+
+  @@unique([profileId, company, position])
+  @@index([profileId, sortOrder])
+}
+
+model Project {
+  id           String   @id @default(cuid())
+  profileId    String
+  profile      Profile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  name         String
+  url          String
+  description  String
+  contribution String?
+  tags         String[]
+  sortOrder    Int
+
+  @@unique([profileId, name])
+  @@index([profileId, sortOrder])
+}
